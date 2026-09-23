@@ -1,6 +1,6 @@
 # Bank Customer Churn Prediction
 
-Estudo de caso de Machine Learning para prever a rotatividade de clientes (churn) de um banco. O projeto cobre todo o fluxo de um problema de classificação desbalanceada: análise exploratória, escolha de uma métrica alinhada ao negócio, comparação de 9 combinações de modelos e técnicas de balanceamento com validação cruzada aninhada e avaliação final em um conjunto de teste isolado.
+Projeto de Machine Learning para prever a rotatividade de clientes (churn) de um banco. O projeto cobre todo o fluxo de um problema de classificação desbalanceada: análise exploratória, escolha de uma métrica alinhada ao negócio, comparação de 9 combinações de modelos e técnicas de balanceamento com validação cruzada aninhada e avaliação final em um conjunto de teste isolado.
 
 ---
 
@@ -20,9 +20,9 @@ O arquivo [`Customer-Churn-Records.csv`](Customer-Churn-Records.csv) contém **1
 
 | Coluna | Tipo | Descrição |
 |---|---|---|
-| `RowNumber` | Numérico | Número do registro (removida) |
+| `RowNumber` | Numérico | Número do registro |
 | `CustomerId` | Numérico | Identificador único do cliente (removida) |
-| `Surname` | Texto | Sobrenome do cliente (removida) |
+| `Surname` | Texto | Sobrenome do cliente |
 | `CreditScore` | Numérico | Pontuação de crédito |
 | `Geography` | Categórico | País do cliente (`France`, `Spain`, `Germany`) |
 | `Gender` | Categórico | Gênero do cliente |
@@ -33,7 +33,7 @@ O arquivo [`Customer-Churn-Records.csv`](Customer-Churn-Records.csv) contém **1
 | `HasCrCard` | Binário | Possui cartão de crédito |
 | `IsActiveMember` | Binário | É membro ativo |
 | `EstimatedSalary` | Numérico | Salário estimado |
-| `Complain` | Binário | Fez reclamação (removida, ver *Data Leakage*) |
+| `Complain` | Binário | Fez reclamação|
 | `Satisfaction Score` | Numérico | Satisfação com a resolução da reclamação |
 | `Card Type` | Categórico | Tipo de cartão (`SILVER`, `GOLD`, `PLATINUM`, `DIAMOND`) |
 | `Point Earned` | Numérico | Pontos acumulados com o cartão de crédito |
@@ -41,7 +41,7 @@ O arquivo [`Customer-Churn-Records.csv`](Customer-Churn-Records.csv) contém **1
 
 ### Data Leakage: a variável `Complain`
 
-O heatmap de correlação mostrou que `Complain` tem correlação praticamente perfeita (~1,0) com `Exited`. Na prática, a reclamação formal acontece junto com o processo de saída ou como consequência dele, então não é uma informação disponível *antes* do churn. Mantê-la faria o modelo "acertar" no treino e falhar em produção. Por isso, a coluna foi removida.
+O heatmap de correlação mostrou que `Complain` tem correlação praticamente perfeita (~1,0) com `Exited`. Na prática, a reclamação formal acontece junto com o processo de saída ou como consequência dele, então não é uma informação disponível *antes* do churn. Mantê-la não faria o modelo aprender a prever quem está prestes a sair do banco, mas sim olhar somente para a variável `Complain` na hora de classificar. Por isso, a coluna foi removida.
 
 ---
 
@@ -81,7 +81,7 @@ Antes de otimizar, três referências foram avaliadas com `StratifiedKFold` (5 d
 | `LogisticRegression` | 0,238 | 0,207 | 0,598 |
 | `DecisionTreeClassifier` (`max_depth=10`) | 0,494 | 0,471 | 0,616 |
 
-O `DummyClassifier` acerta ~80% dos casos sem prever nenhum churn, o que mostra por que **acurácia não serve** como métrica aqui.
+O `DummyClassifier` acerta ~80% dos casos sem prever nenhum churn, o que mostra por que **acurácia não serve** como métrica prioritária aqui.
 
 ### 5. Modelagem com validação cruzada aninhada
 
@@ -175,6 +175,6 @@ O notebook lê o dataset por caminho relativo (`Customer-Churn-Records.csv`), en
 
 ## Tecnologias utilizadas
 
-- **Linguagem:** Python 3
+- **Linguagem:** Python 3.13.15
 - **Bibliotecas:** pandas, NumPy, scikit-learn, imbalanced-learn, Matplotlib, Seaborn
 - **Ambiente:** Google Colab / Jupyter Notebook
