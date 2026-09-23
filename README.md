@@ -1,71 +1,180 @@
 # Bank Customer Churn Prediction
 
-Este é um estudo de caso de Machine Learning focado em prever a rotatividade de clientes (churn) em uma instituição financeira. O projeto é focado no desenvolvimento de um modelo de Machine Learning de classificação, desde testes com um modelo baseline até o tratamento de desbalanceamento de classes usando métodos de Ensemble e técnicas de validação cruzada.
-
-## Visão Geral do Projeto
-Reter clientes existentes é frequentemente muito mais econômico para as instituições financeiras do que adquirir novos. Este projeto constrói um pipeline preditivo robusto para identificar clientes com alto risco de deixar o banco (Churn), permitindo estratégias proativas de retenção.
-
-O principal desafio técnico foi gerenciar um conjunto de dados altamente desbalanceado, mantendo um framework de validação matematicamente seguro para evitar vazamento de dados e métricas excessivamente otimistas ou tendenciosas.
+Estudo de caso de Machine Learning para prever a rotatividade de clientes (churn) de um banco. O projeto cobre todo o fluxo de um problema de classificação desbalanceada: análise exploratória, escolha de uma métrica alinhada ao negócio, comparação de 9 combinações de modelos e técnicas de balanceamento com validação cruzada aninhada e avaliação final em um conjunto de teste isolado.
 
 ---
 
-## Dataset & Atributos
-O conjunto de dados contém perfis demográficos e financeiros de clientes bancários.
+## Objetivo
 
-* **RowNumber / CustomerId / Surname:** Identificadores únicos (removidos durante o pré-processamento por não possuírem poder preditivo).
-* **CreditScore / Balance / EstimatedSalary:** Indicadores de saúde financeira.
-* **Geography / Gender / Card Type:** Características demográficas categóricas.
-* **Age:** Idade do cliente (altamente relevante para padrões de fidelidade).
-* **Tenure:** Anos em que o cliente está com o banco.
-* **NumOfProducts:** Quantidade de produtos adquiridos pelo cliente no banco.
-* **HasCrCard / IsActiveMember:** Flags binárias de comportamento.
-* **Points Earned:** Pontos acumulados pelo cliente ao utilizar o cartão de crédito.
-* **Exited:** **Variável Alvo (Target)** (1 se o cliente deixou o banco, 0 caso contrário).
+Construir um modelo capaz de identificar, com antecedência, os clientes com maior risco de deixar o banco, permitindo que o time de retenção aja antes da saída.
+
+Reter um cliente costuma ser muito mais barato do que adquirir um novo. Por isso, o foco do modelo é **não deixar clientes em risco passarem despercebidos** (recall alto), sem gerar alarmes falsos em excesso (precisão aceitável).
 
 ---
 
-## Identificação de Data Leakage (Insight Chave de Engenharia)
-Durante a análise de correlação via Heatmaps, um padrão crítico foi identificado: a variável **`Complain`** tinha uma correlação perfeita ($1.0$) com a variável alvo `Exited`.
+## Dataset
 
-* **O Problema:** Em um cenário real, o fato de um cliente registrar uma reclamação formal ocorre de forma praticamente simultânea ao processo de churn ou como uma consequência direta dele. Manter essa variável no conjunto de dados causa **Vazamento de Dados** — o modelo passa a depender fortemente dessa única "característica do futuro" e performa perfeitamente durante o treino, mas falha completamente ao generalizar para clientes novos na realidade.
-* **A Solução:** O atributo `Complain` foi totalmente removido dos dados de treinamento, forçando os modelos a aprenderem os verdadeiros padrões comportamentais e financeiros subjacentes, em vez de dependerem de uma variável viciada.
+Fonte: [Bank Customer Churn (Kaggle)](https://www.kaggle.com/datasets/radheshyamkollipara/bank-customer-churn).
 
----
+O arquivo [`Customer-Churn-Records.csv`](Customer-Churn-Records.csv) contém **10.000 clientes** e **18 colunas**, sem valores nulos e sem registros duplicados. A variável alvo é desbalanceada: **~20,4% dos clientes deram churn**.
 
-## Metodologia & Evolução dos Modelos
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `RowNumber` | Numérico | Número do registro (removida) |
+| `CustomerId` | Numérico | Identificador único do cliente (removida) |
+| `Surname` | Texto | Sobrenome do cliente (removida) |
+| `CreditScore` | Numérico | Pontuação de crédito |
+| `Geography` | Categórico | País do cliente (`France`, `Spain`, `Germany`) |
+| `Gender` | Categórico | Gênero do cliente |
+| `Age` | Numérico | Idade |
+| `Tenure` | Numérico | Anos de relacionamento com o banco |
+| `Balance` | Numérico | Saldo em conta |
+| `NumOfProducts` | Numérico | Quantidade de produtos contratados |
+| `HasCrCard` | Binário | Possui cartão de crédito |
+| `IsActiveMember` | Binário | É membro ativo |
+| `EstimatedSalary` | Numérico | Salário estimado |
+| `Complain` | Binário | Fez reclamação (removida, ver *Data Leakage*) |
+| `Satisfaction Score` | Numérico | Satisfação com a resolução da reclamação |
+| `Card Type` | Categórico | Tipo de cartão (`SILVER`, `GOLD`, `PLATINUM`, `DIAMOND`) |
+| `Point Earned` | Numérico | Pontos acumulados com o cartão de crédito |
+| `Exited` | Binário | **Variável alvo**: 1 se o cliente saiu do banco, 0 caso contrário |
 
-Este projeto seguiu uma abordagem estruturada de benchmarking para encontrar a solução mais equilibrada e lucrativa para o banco:
+### Data Leakage: a variável `Complain`
 
-### 1. Modelo Baseline: Árvore de Decisão (Decision Tree)
-* **Abordagem:** Uma Árvore de Decisão pura, permitindo que ela crescesse sem restrições de profundidade.
-* **Resultado:** Sofreu de um severo **Overfitting**. Alcançou quase 100% de acerto nos dados de treino, mas o desempenho despencou nos dados de avaliação, servindo apenas como um baseline instável.
-
-### 2. Tratando o Desbalanceamento: Técnicas de Amostragem (NearMiss & SMOTE)
-* **Abordagem:** Aplicação de Undersampling (NearMiss) e Oversampling (SMOTE) para balancear a classe alvo.
-* **Resultado:** Embora o NearMiss tenha aumentado drasticamente o **Recall** (capturando quase todos os casos de churn), sua **Precisão** colapsou para a faixa de 24-25%. Para um banco, uma precisão tão baixa significa gerar uma quantidade massiva de alarmes falsos, desperdiçando orçamento de marketing com clientes que seriam fiéis de qualquer forma.
-
-### 3. O Campeão: Random Forest com Ajuste de Pesos de Classe
-* **Abordagem:** Implementação de um classificador **Random Forest** utilizando balanceamento algorítmico interno via parâmetro `class_weight='balanced'`.
-* **Resultado:** Esta abordagem alcançou o equilíbrio de negócios ideal. Forneceu um Recall competitivo e estável, ao mesmo tempo em que recuperou significativamente a Precisão, resultando em um **F1-Score** muito mais alto e seguro para tomada de decisão.
-
----
-
-## Framework de Validação Robusta
-Para garantir a confiabilidade do modelo antes de qualquer decisão de negócio, um pipeline de validação rigoroso foi construído utilizando o `scikit-learn`:
-
-* **`StratifiedKFold` (5 Splits):** Preservou a distribuição original da classe minoritária em todas as dobras de treino e validação.
-* **`cross_validate`:** Utilizado para calcular os intervalos de confiança das métricas (Precisão, Recall e F1-score) ao longo das dobras, garantindo que o desempenho do modelo não seja fruto de uma divisão de dados "de sorte".
-* **`cross_val_predict`:** Gerou previsões seguras e fora da dobra (*out-of-fold*) cobrindo todo o conjunto de treino. Isso permitiu uma avaliação das principais métricas do modelo, simulando exatamente como ele reagirá a dados novos em produção.
+O heatmap de correlação mostrou que `Complain` tem correlação praticamente perfeita (~1,0) com `Exited`. Na prática, a reclamação formal acontece junto com o processo de saída ou como consequência dele, então não é uma informação disponível *antes* do churn. Mantê-la faria o modelo "acertar" no treino e falhar em produção. Por isso, a coluna foi removida.
 
 ---
 
-## Principais Aprendizados Técnicos
-* **Métricas Estatísticas vs. Métricas de Negócio:** Maximizar o Recall destruindo a Precisão (como na tentativa com NearMiss) é financeiramente inviável para aplicações de negócios reais.
-* **Organização de Estados no Notebook:** Prática de gerenciamento limpo de código ao redefinir e isolar explicitamente os objetos de cada modelo em suas respectivas células, garantindo outputs reprodutíveis, confiáveis e sem misturar o histórico de treinamento.
+## Metodologia
+
+### 1. Análise exploratória (EDA)
+
+- **Univariada:** distribuições das variáveis categóricas e contínuas, além de boxplots para outliers. `Age` e `CreditScore` têm outliers, mas nada que prejudique modelos baseados em árvore. `Balance` tem uma grande concentração de contas zeradas.
+- **Bivariada (contra `Exited`):**
+  - `NumOfProducts`: clientes com 3 ou 4 produtos saem em sua grande maioria, e clientes com 2 produtos quase não saem.
+  - `Geography`: clientes de `Germany` têm taxa de churn visivelmente maior que os de `France` e `Spain`.
+  - `Age`: clientes mais velhos tendem a sair mais. É a única variável contínua com diferença clara entre as classes.
+
+### 2. Preparação dos dados
+
+- Split estratificado **80% treino / 20% teste** (`random_state=42`). O conjunto de teste só é usado na avaliação final.
+- Pré-processamento com `ColumnTransformer`:
+  - `OneHotEncoder` para `Geography`, `Gender` e `Card Type`;
+  - `StandardScaler` para as variáveis numéricas.
+- Todo o pré-processamento fica **dentro de uma `Pipeline`**, sendo reajustado a cada dobra da validação cruzada, o que evita vazamento de dados entre treino e validação.
+
+### 3. Métrica de otimização: F2-score
+
+Recall puro pode ser "trapaceado": um modelo que classifica todo mundo como churn tem recall de 100%. A métrica escolhida foi o **F2-score**, média harmônica entre precisão e recall com peso maior no recall:
+
+$$F_\beta = (1 + \beta^2) \cdot \frac{precisão \cdot recall}{\beta^2 \cdot precisão + recall}, \quad \beta = 2$$
+
+Ela traduz a regra de negócio: *perder um cliente custa mais caro do que oferecer um desconto desnecessário, mas não infinitamente mais caro.*
+
+### 4. Baselines
+
+Antes de otimizar, três referências foram avaliadas com `StratifiedKFold` (5 dobras):
+
+| Modelo | F2 | Recall | Precisão |
+|---|---|---|---|
+| `DummyClassifier` (classe majoritária) | 0,000 | 0,000 | 0,000 |
+| `LogisticRegression` | 0,238 | 0,207 | 0,598 |
+| `DecisionTreeClassifier` (`max_depth=10`) | 0,494 | 0,471 | 0,616 |
+
+O `DummyClassifier` acerta ~80% dos casos sem prever nenhum churn, o que mostra por que **acurácia não serve** como métrica aqui.
+
+### 5. Modelagem com validação cruzada aninhada
+
+Foram testados **3 algoritmos × 3 estratégias de balanceamento = 9 combinações**:
+
+- Algoritmos: `DecisionTreeClassifier`, `RandomForestClassifier` e `LogisticRegression`;
+- Balanceamento: `class_weight='balanced'` (como hiperparâmetro), oversampling com `SMOTE` e undersampling com `NearMiss` (versões 1, 2 e 3). As técnicas de amostragem rodam dentro de uma `imblearn.pipeline.Pipeline`, sendo aplicadas somente nos dados de treino de cada dobra.
+
+Cada combinação foi otimizada com `RandomizedSearchCV` (refit por F2) em uma **validação cruzada aninhada**:
+
+- **Loop interno** (`StratifiedKFold`, 3 dobras): busca de hiperparâmetros;
+- **Loop externo** (`StratifiedKFold`, 5 dobras): estimativa honesta do desempenho do processo de busca.
+
+### 6. Ranking (validação cruzada aninhada, conjunto de treino)
+
+| Modelo | F2 | Desvio | Recall | Precisão | F1 |
+|---|---|---|---|---|---|
+| **Random Forest** | **0,670** | 0,009 | 0,715 | 0,535 | 0,612 |
+| Random Forest + NearMiss | 0,651 | 0,011 | 0,707 | 0,494 | 0,582 |
+| Random Forest + SMOTE | 0,639 | 0,020 | 0,651 | 0,594 | 0,621 |
+| Decision Tree + NearMiss | 0,633 | 0,013 | 0,848 | 0,315 | 0,459 |
+| Decision Tree | 0,630 | 0,014 | 0,712 | 0,433 | 0,537 |
+| Decision Tree + SMOTE | 0,617 | 0,017 | 0,660 | 0,503 | 0,567 |
+| Logistic Regression | 0,602 | 0,019 | 0,707 | 0,378 | 0,493 |
+| Logistic Regression + SMOTE | 0,584 | 0,016 | 0,700 | 0,355 | 0,469 |
+| Logistic Regression + NearMiss | 0,574 | 0,010 | 0,755 | 0,293 | 0,422 |
+
+O **Random Forest com `class_weight='balanced'`** venceu com o maior F2 e o menor desvio entre dobras. Técnicas de amostragem não superaram o balanceamento por peso de classe. O `NearMiss` com Decision Tree, por exemplo, atinge recall de 0,848, mas derruba a precisão para 0,315.
+
+Hiperparâmetros do modelo vencedor:
+
+```
+max_depth        = 8
+min_samples_leaf = 20
+max_features     = 0.5
+class_weight     = balanced
+```
 
 ---
 
-## Tecnologias Utilizadas
-* **Linguagem:** Python 3.x
-* **Bibliotecas:** Pandas, NumPy, Scikit-Learn, Imbalanced-Learn, Matplotlib, Seaborn
-* **Ambiente:** Google Colab / Jupyter Notebook
+## Métricas finais (conjunto de teste)
+
+Avaliação do modelo vencedor nos **2.000 clientes** do conjunto de teste, nunca vistos durante o treino e a otimização:
+
+| Métrica (classe churn) | Valor |
+|---|---|
+| **F2-score** (métrica-alvo) | **0,690** |
+| Recall | 0,743 |
+| Precisão | 0,536 |
+| F1-score | 0,623 |
+| Acurácia | 0,817 |
+
+### Leitura de negócio
+
+Dos 2.000 clientes de teste, 408 realmente saíram do banco:
+
+- **303 clientes em risco foram identificados** (74,3% dos que sairiam), e o time de retenção teria a chance de agir.
+- **105 clientes saíram sem nenhum alerta**. É o erro mais caro.
+- **263 clientes receberiam contato desnecessário**. É o erro barato: custa a ação de retenção, não o cliente.
+
+**Limitação:** com precisão de 53,6%, cerca de metade dos alertas é falso positivo. Aumentar a precisão exigiria aceitar um recall menor. Qual erro priorizar é uma decisão de negócio e depende da relação entre o custo de uma campanha de retenção e o valor de um cliente perdido.
+
+---
+
+## Como rodar
+
+### Opção 1: Google Colab
+
+1. Abra o notebook no Colab: [bank_customer_churn.ipynb](https://colab.research.google.com/github/ghfreiree/bank-customer-churn-prediction/blob/main/bank_customer_churn.ipynb)
+2. Faça upload do arquivo `Customer-Churn-Records.csv` para a pasta `/content` (ícone de pasta na barra lateral).
+3. Execute todas as células (*Ambiente de execução → Executar tudo*).
+
+### Opção 2: Localmente
+
+```bash
+git clone https://github.com/ghfreiree/bank-customer-churn-prediction.git
+cd bank-customer-churn-prediction
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+pip install numpy pandas matplotlib seaborn scikit-learn imbalanced-learn jupyter
+jupyter notebook bank_customer_churn.ipynb
+```
+
+O notebook lê o dataset por caminho relativo (`Customer-Churn-Records.csv`), então funciona sem alterações tanto no Colab quanto localmente, desde que o CSV esteja na mesma pasta do notebook.
+
+> A validação cruzada aninhada treina centenas de modelos. A execução completa pode levar alguns minutos.
+
+---
+
+## Tecnologias utilizadas
+
+- **Linguagem:** Python 3
+- **Bibliotecas:** pandas, NumPy, scikit-learn, imbalanced-learn, Matplotlib, Seaborn
+- **Ambiente:** Google Colab / Jupyter Notebook
