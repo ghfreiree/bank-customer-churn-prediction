@@ -1,6 +1,5 @@
 """Busca de hiperparâmetros com validação cruzada aninhada, usada para todos os modelos do notebook 02_modelagem."""
-import numpy as np
-from sklearn.model_selection import RandomizedSearchCV, cross_validate
+from sklearn.model_selection import ParameterGrid, RandomizedSearchCV, cross_validate
 
 from src.config import RANDOM_STATE
 
@@ -8,8 +7,7 @@ from src.config import RANDOM_STATE
 def contar_treinos(params, cv):
     """Mostra quantas combinações de hiperparâmetros existem e quantos treinos o loop interno faria com todas.
     `params` pode ser um dicionário ou uma lista de dicionários (como na Logistic Regression)."""
-    grades = params if isinstance(params, list) else [params]
-    total = sum(np.prod([len(v) for v in grade.values()]) for grade in grades)
+    total = len(ParameterGrid(params))
     print(f'{total} combinações x {cv.get_n_splits()} dobras = {total * cv.get_n_splits()} treinos')
 
 
@@ -26,6 +24,10 @@ def avaliar_busca_aninhada(pipe, params, x, y, scoring, inner_cv, outer_cv, n_it
     Depois refaz a busca com todo o treino, para ter o modelo final.
 
     Retorna a busca já treinada e os scores das dobras externas."""
+    # Se o espaço de busca tem menos de n_iter combinações, testa todas. É o mesmo que o
+    # RandomizedSearchCV faria sozinho, mas sem o aviso de "espaço menor que n_iter".
+    n_iter = min(n_iter, len(ParameterGrid(params)))
+
     busca = RandomizedSearchCV(
         estimator=pipe,
         param_distributions=params,
